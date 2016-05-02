@@ -18,6 +18,7 @@ You should have received a copy of the GNU General Public License
 along with Oe2sSLE.  If not, see <http://www.gnu.org/licenses/>
 """
 
+import logging
 import struct
 import RIFF
 import warnings
@@ -158,6 +159,7 @@ class RIFF_korg_esli(RIFF.ChunkData):
             
     
     def __init__(self, file=None, chunkHeader=None):
+        logging.debug("Initializing RIFF class")
         self.fields = dict()
         self.rawdata = bytearray(RIFF_korg_esli._dataSize)
         offset = 0
@@ -255,28 +257,30 @@ class RIFF_korg_esli(RIFF.ChunkData):
             self.__dict__[name] = value
         
     def read(self, file, chunkHeader):
+        logging.debug("trying to read RIFF file")
         if chunkHeader.id != b'esli':
             raise TypeError("'elsi' chunk expected")
         if chunkHeader.size < RIFF_korg_esli._dataSize:
             raise ValueError('Unknown esli chunck size')
         if chunkHeader.size > RIFF_korg_esli._dataSize:
-            print ('Unusual esli chunck size')
+            logging.warn('Unusual esli chunck size')
         self.rawdata[:] = file.read(chunkHeader.size)
         if len(self.rawdata) != chunkHeader.size:
             raise EOFError('Unexpected End Of File')
 
         if self._16_22_UFix != b'\x00\x00\x00\x7F\x00\x01\x00\x00\x00\x00\x00\x00':
-            print('Unusual values in _16_22_UFix: ', self._16_22_UFix)
+            logging.warn('Unusual values in _16_22_UFix: %s', self._16_22_UFix)
         if self._27_UFix != b'\x00':
-            print('Unusual values in _27_UFix: ', self._27_UFix)
+            logging.warn('Unusual values in _27_UFix: %s', self._27_UFix)
         if self._35_3C_UFix != b'\x00\x00\x00\x00\x00\x00\x00':
-            print('Unusual values in _35_3C_UFix: ', self._35_3C_UFix)
+            logging.warn('Unusual values in _35_3C_UFix: %s', self._35_3C_UFix)
         if self._43_48_UFix != b'\x01\xB0\x04\x00\x00':
-            print('Unusual values in _43_48_UFix: ', self._43_48_UFix)
+            logging.warn('Unusual values in _43_48_UFix: %s', self._43_48_UFix)
         if self._4C_UFix != b'\x00':
-            print('Unusual values in _4C_UFix: ', self._4C_UFix)
+            logging.warn('Unusual values in _4C_UFix: %s', self._4C_UFix)
         if self.useChan0_UFix != 1:
-            print('Unusual value in useChan0_UFix: ', self.useChan0_UFix)
+            logging.warn('Unusual value in useChan0_UFix: %s', self.useChan0_UFix)
+        logging.debug("done with 'read'")
 
     def reset(self):
         self._16_22_UFix = b'\x00\x00\x00\x7F\x00\x01\x00\x00\x00\x00\x00\x00'
@@ -399,6 +403,7 @@ class e2s_sample_all:
                         self.samples.append(sample)
                     except:
                         self._loadErrors += 1
+                        logging.warn('Recovering from an error while reading a sample')
                         warnings.warn('Recovering from an error while reading a sample')
                         traceback.print_exc()
 
@@ -411,6 +416,7 @@ class e2s_sample_all:
         for sample in self.samples:
             addr=sample.RIFF.chunkList.get_chunk(b'korg').data.chunkList.get_chunk(b'esli').data.OSC_0index
             if riffAddrs[addr][1] is not None:
+                logging.warn('Multiple samples with same OSC number, duplicates lost')
                 warnings.warn('Multiple samples with same OSC number, duplicates lost')
             riffAddrs[addr] = (riffNextAddr,sample)
             riffNextAddr+=len(sample)
@@ -424,6 +430,7 @@ class e2s_sample_all:
                 if riffAddr[0]:
                     diff = riffAddr[0]-f.tell()
                     if diff:
+                        logging.warn('empty feeling')
                         warnings.warn('empty feeling')
                         f.write(b'\x00'*diff)
                     riffAddr[1].write(f)

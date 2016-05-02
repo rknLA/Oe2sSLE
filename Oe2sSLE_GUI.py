@@ -22,11 +22,12 @@ import tkinter as tk
 import tkinter.filedialog
 import tkinter.messagebox
 import tkinter.ttk
-#import re
+
+import argparse
+import logging
 import math
 import platform
 import threading
-#import time
 import warnings
 import sys
 
@@ -44,6 +45,11 @@ import webbrowser
 
 Oe2sSLE_VERSION = (0,0,9)
 
+parser = argparse.ArgumentParser()
+parser.add_argument("-d", "--debug",
+    help="Debug to the console instead of a log file",
+    action="store_true")
+
 # for pyIntaller bundled executable
 def resource_path(relative_path):
     try:
@@ -53,29 +59,6 @@ def resource_path(relative_path):
 
     return os.path.join(base_path, relative_path)
 
-class logger:
-    def __init__(self):
-        self.file = None
-        self.stderr = sys.stderr
-        self.stdout = sys.stdout
-        sys.stderr=self
-        sys.stdout=self
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        if self.file:
-            self.file.write('-- Logger closed --\n')
-            self.file.close()
-        sys.stderr = self.stderr
-        sys.stdout = self.stdout
-
-    def write(self, data):
-        if not self.file:
-            self.file = open('Oe2sSLE.log', 'a')
-        self.file.write(data)
-        self.file.flush()
 
 class WaitDialog(tk.Toplevel):
     def __init__(self, parent, *args, **kwargs):
@@ -1383,7 +1366,7 @@ class Sample(object):
         self.tuneVal.set(esli.sampleTune)
         self.samplingFreq.set(esli.samplingFreq)
         if fmt.samplesPerSec != esli.samplingFreq:
-            print("Warning: sampling frequency differs between esli and fmt")
+            logging.warn("sampling frequency differs between esli and fmt")
         self.duration.set("{:.4f}".format(len(data)/fmt.avgBytesPerSec if fmt.avgBytesPerSec else 0))
         self.stereo.set(fmt.channels > 1)
         self.smpSize.set(len(data))
@@ -2108,11 +2091,19 @@ class SampleAllEditor(tk.Tk):
 
 
 if __name__ == '__main__':
-    # redirect outputs to a logger
-    with logger() as log:
-        # Create a window
-        app = SampleAllEditor()
-        playIcon=tk.PhotoImage(file=resource_path("images/play.gif"))
-        stopIcon=tk.PhotoImage(file=resource_path("images/stop.gif"))
-        app.mainloop()
-        audio.terminate()
+    # Create a window
+    args = parser.parse_args()
+    if args.debug:
+        logging.basicConfig(level=logging.DEBUG,
+            format="%(asctime)s %(levelname)s:%(filename)s(%(lineno)d)%(funcName)s: %(message)s")
+    else:
+        logging.basicConfig(filename="Oe2sSLE.log",
+            level=logging.DEBUG,
+            format="%(asctime)s %(levelname)s:%(filename)s(%(lineno)d)%(funcName)s: %(message)s")
+    logging.info("-- begin logging")
+    app = SampleAllEditor()
+    playIcon=tk.PhotoImage(file=resource_path("images/play.gif"))
+    stopIcon=tk.PhotoImage(file=resource_path("images/stop.gif"))
+    app.mainloop()
+    audio.terminate()
+    logging.info("-- done logging")
